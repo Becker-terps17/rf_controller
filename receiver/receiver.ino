@@ -1,42 +1,108 @@
-//receives 4 int array of pot values and writes them to servo pins 
+/* 
+ * RF Receiver
+ * By: Alex Smith
+ * 
+ * Inspired and guided By: Dejan Nedelkovski's Arduino based RC Transmitter, www.HowToMechatronics.com
+ * Library: TMRh20/RF24, https://github.com/tmrh20/RF24/
+ * 
+ */
+
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <Wire.h>
 #include <Servo.h>
 
-RF24 radio(7, 8); // CNS, CE
+//--------Define radio--------
+RF24 radio(8, 7); // CE, CSN
 const byte address[6] = "00001";
-Servo a;
+
+//--------Define servos--------
+//Servo a;
 //Servo b;
 //Servo c;
 //Servo d;
 //Servo e;
 
-///////////////////////////For Motors/////////////////////////
+//--------Define variables--------
+unsigned long lastReceiveTime = 0;
+unsigned long currentTime = 0;
 
+//int angle_total[5];
+
+//--------Define data packet--------
+// Max size of structure is 32 bytes (buffer limit for RF module)
+struct Data_Packet {
+  byte joyLPotX;
+  byte joyLPotY;
+  byte joyLButton;
+  byte joyRPotX;
+  byte joyRPotY;
+  byte joyRButton;
+  byte LPot;
+  byte RPot;
+  byte button1;
+  byte button2;
+  byte button3;
+  byte button4;
+  byte toggle1;
+  byte toggle2;
+};
+
+Data_Packet data; // create a variable with the above data structure
+
+//--------Initial Setup--------
 void setup() {
+  //--------Initialize serial port--------
   Serial.begin(9600);
-  a.attach(5);
+
+  //--------Attach servo objects--------
+  //a.attach(5);
   //b.attach(6);
   //c.attach(9);
   //d.attach(10);
   //e.attach(3);
+
+  //--------Initialize RF--------
   radio.begin();
   radio.openReadingPipe(0, address);
-  radio.setPALevel(RF24_PA_MIN);
+  //radio.setAutoAck(false); // auto-acknowledge packets - enabled by default
+  //radio.setDataRate(RF24_250KBPS); // will fail for non-plus units
+  radio.setPALevel(RF24_PA_MIN); // set power amplifer level - min is fine for close range
   radio.startListening(); //sets radio as receiver
+  resetData();
 }
 
-int angle_total[5];
-
 void loop() {
-  delay(5);
-  radio.startListening();
+  //--------Check for data--------
   int i, j;
-  if ( radio.available()) {
-    int angle[5] = {0,0,0,0,0}; 
+  
+  if (radio.available()) {
+    int angle[5] = {0,0,0,0,0};
+    radio.read(&data, sizeof(Data_Packet)); // read the whole data and store in 'data' structure
+    lastReceiveTime = millis(); // time stamp for data received
+  }
+  
+  //--------Check for incoming data and module connection--------
+  currentTime = millis();
+  if (currentTime - lastReceiveTime > 1000) {
+    resetData(); // reset data if connection is lost for 1 sec 
+  }
+
+  //--------Print data--------
+  Serial.print("joyLPotX: ");
+  Serial.print(data.joyLPotX);
+  Serial.print("; joyLPotY: ");
+  Serial.print(data.joyLPotY);
+  Serial.print("; joyLButton: ");
+  Serial.print(data.joyLButton);
+  Serial.print("; joyRPotX: ");
+  Serial.print(data.joyRPotX);
+
+}
+
+  /*
     while (radio.available()) {
-      //int angle[5] = {0,0,0,0,0};
       radio.read(&angle, sizeof(angle));
       for (i=0; i<5; i++){
         
@@ -63,57 +129,25 @@ void loop() {
     }
     delay(20);
     radio.stopListening();
-  }
+    */
+
+
+//--------Reset data when connection is lost--------
+int resetData() {
+  // reset to initial default values
+  data.joyLPotX = 127;
+  data.joyLPotY = 127;
+  data.joyRPotX = 127;
+  data.joyRPotY = 127;
+  data.LPot = 127;
+  data.RPot = 127;
+
+  data.joyLButton = 1;
+  data.joyRButton = 1;
+  data.button1 = 1;
+  data.button2 = 1;
+  data.button3 = 1;
+  data.button4 = 1;
+  data.toggle1 = 1;
+  data.toggle2 = 1;
 }
-
-
-
-/////////////////////////////For Leds///////////////////////////
-/*
-void setup() {
-  Serial.begin(9600);
-  pinMode(5, OUTPUT);
-  pinMode(6, OUTPUT);
-  pinMode(9, OUTPUT);
-  pinMode(10, OUTPUT);
-  pinMode(3, OUTPUT);
-  digitalWrite(5, LOW);
-  digitalWrite(6, LOW);
-  digitalWrite(9, LOW);
-  digitalWrite(10, LOW);
-  digitalWrite(3, LOW);
-  radio.begin();
-  radio.openReadingPipe(0, address);
-  radio.setPALevel(RF24_PA_MIN);
-  radio.startListening(); //sets radio as receiver
-}
-
-void loop() {
-  delay(5);
-  radio.startListening();
-  int i,j;
-  if ( radio.available()) {
-    while (radio.available()) {
-      int angle[5] = {0,0,0,0,0};
-      //int state[5] = {0,0,0,0,0};
-      radio.read(&angle, sizeof(angle));
-      for (i=0; i<5; i++) {
-        if (angle[i]<45 || angle[i]>135) {
-          angle[i] = 1;
-        }
-        else {
-          angle[i] = 0;
-        }
-        Serial.println(angle[i]);
-      }
-      digitalWrite(5,angle[0]);
-      digitalWrite(6,angle[1]);
-      digitalWrite(9,angle[2]);
-      digitalWrite(10,angle[3]);
-      digitalWrite(3,angle[4]);
-    }
-    delay(500);
-    radio.stopListening();
-  }
-}
-*/
