@@ -97,8 +97,9 @@ void loop() {
   Serial.print("; joyLButton: ");
   Serial.print(data.joyLButton);
   Serial.print("; joyRPotX: ");
-  Serial.print(data.joyRPotX);
+  Serial.println(data.joyRPotX);
 
+  delay(500);
 }
 
   /*
